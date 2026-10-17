@@ -1,0 +1,21 @@
+apiVersion: plugin.halo.run/v1alpha1
+kind: Plugin
+metadata:
+  name: asyntai-ai-chatbot
+spec:
+  enabled: true
+  requires: ">=2.20.0"
+  author:
+    name: Asyntai
+    website: https://asyntai.com
+  logo: logo.png
+  homepage: https://asyntai.com/documentation/integrations/halo/
+  repo: https://github.com/asyntai/halo-ai-chatbot
+  issues: https://github.com/asyntai/halo-ai-chatbot/issues
+  settingName: asyntai-ai-chatbot-settings
+  configMapName: asyntai-ai-chatbot-configmap
+  displayName: "Asyntai AI 智能客服"
+  description: "为你的网站添加 AI 智能客服（AI Chatbot）。它根据你的网站内容，用访客的语言回答问题，支持 80 多种语言。一键连接，无需修改主题。"
+  license:
+    - name: "GPL-3.0"
+      url: "https://github.com/asyntai/halo-ai-chatbot/blob/main/LICENSE"

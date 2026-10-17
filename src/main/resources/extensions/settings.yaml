@@ -1,0 +1,22 @@
+apiVersion: v1alpha1
+kind: Setting
+metadata:
+  name: asyntai-ai-chatbot-settings
+spec:
+  forms:
+    - group: basic
+      label: 基本设置 / Settings
+      formSchema:
+        - $formkit: checkbox
+          name: enabled
+          label: 显示聊天窗口 / Show the chat widget
+          value: true
+          help: 取消勾选后，网站上不再显示聊天窗口。Clear this box to hide the chat widget on your website.
+        - $formkit: text
+          name: widgetId
+          label: 小部件 ID / Widget ID
+          placeholder: asyntai_...
+          help: 推荐在“连接 Asyntai”标签页一键连接。也可以在这里填写 Asyntai 控制台“安装”页面上的小部件 ID。Use the "Connect Asyntai" tab to connect in one click, or paste the widget ID from the Install page of your Asyntai dashboard.
+          validation: "matches:/^(asyntai_[A-Za-z0-9]+)?$/"
+          validation-messages:
+            matches: 小部件 ID 的格式为 asyntai_ 加字母和数字。The widget ID looks like asyntai_1a2b3c4d5e6f.
