@@ -4,6 +4,9 @@
 
 Add the [Asyntai](https://asyntai.com) AI chatbot to your Halo website. It answers visitor questions from your own website content, in Chinese, English and more than 80 other languages. Connect in one click, and edit no theme file.
 
+插件免费。Asyntai 服务提供免费套餐和付费套餐，详见 [价格](https://asyntai.com/pricing/)。
+The plugin is free. The Asyntai service has a free plan and paid plans, see [pricing](https://asyntai.com/pricing/).
+
 ## 安装 / Install
 
 1. 下载 [asyntai-halo-ai-chatbot.jar](https://asyntai.com/static/downloads/asyntai-halo-ai-chatbot.jar)。
