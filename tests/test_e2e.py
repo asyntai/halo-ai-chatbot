@@ -143,12 +143,38 @@ def install(halo, jar_path):
     check("Halo creates the plugin ConfigMap", halo.config_map() is not None)
 
 
+def check_connect_endpoint(halo, mock):
+    """The console asks the plugin's own API; the plugin asks Asyntai on the server."""
+    api = "/apis/console.api.asyntai.halo.run/v1alpha1/connections/"
+    state = "halo_" + uuid.uuid4().hex[:16]
+    status, text = halo.request("GET", api + state)
+    check("connect API: not connected yet", status == 200 and json.loads(text).get("connected") is False,
+          f"{status} {text[:120]}")
+    status, _ = halo.request("GET", api + "halo_BAD")
+    check("connect API: bad state is refused", status == 400, str(status))
+    status, text = halo.request("GET", api + state, auth=False)
+    # Halo answers 401/403, or redirects to the login page (urllib follows it).
+    check("connect API: needs a login", status in (401, 403) or '"connected"' not in text, str(status))
+    urllib.request.urlopen(f"{mock}/wp-auth?platform=halo&state={state}", timeout=10).read()
+    status, text = halo.request("GET", api + state)
+    data = json.loads(text) if status == 200 else {}
+    check("connect API: connected after sign-in", data.get("connected") is True
+          and data.get("siteId", "").startswith("asyntai_") and "scriptUrl" in data, f"{status} {text[:160]}")
+    status, text = halo.request("GET", "/apis/api.console.halo.run/v1alpha1/ui-plugins/-/bundle.js")
+    if status == 404:
+        status, text = halo.request("GET", "/apis/api.console.halo.run/v1alpha1/plugins/-/bundle.js")
+    check("console bundle loads no remote connect script", "connect-status.js" not in text
+          and "console.api.asyntai.halo.run" in text)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base", required=True)
     ap.add_argument("--password", required=True)
     ap.add_argument("--jar", required=True)
     ap.add_argument("--setup", action="store_true")
+    ap.add_argument("--mock", default="", help="mock Asyntai base URL, for example http://127.0.0.1:8097 "
+                    "(Halo must run with -Dasyntai.origin set to the same URL)")
     args = ap.parse_args()
 
     if args.setup:
@@ -166,6 +192,9 @@ def main():
         status, text = halo.request("GET", "/apis/api.console.halo.run/v1alpha1/plugins/-/bundle.js")
     check("console bundle has the Connect tab",
           status == 200 and "plugin:self:tabs:create" in text and "asyntai-connect" in text, str(status))
+
+    if args.mock:
+        check_connect_endpoint(halo, args.mock)
 
     pages = ["/", "/archives", "/archives/hello-halo", "/tags"]
 

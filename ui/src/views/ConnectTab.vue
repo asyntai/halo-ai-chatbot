@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { VButton } from '@halo-dev/components'
+import { axiosInstance } from '@halo-dev/api-client'
 import { messages } from '../i18n'
 import { load, save, trustedScriptUrl, WIDGET_ID_PATTERN } from '../config'
 
 const t = messages()
 
-// asyntai.com, or a local test server set in localStorage for development.
+// The sign-in window opens on asyntai.com, or on a local test server set in
+// localStorage for development. No script from this origin runs in the console.
 function asyntaiOrigin(): string {
   let value = ''
   try {
@@ -89,44 +91,69 @@ async function store(id: string, email: string, scriptUrl: string) {
   }
 }
 
+// The connect status comes from this plugin's own API. The plugin asks
+// asyntai.com on the server, so no remote script runs in the console.
+const STATUS_API = '/apis/console.api.asyntai.halo.run/v1alpha1/connections/'
+const POLL_INTERVAL_MS = 3000
+const MAX_CHECKS = 100 // 5 minutes
+const MAX_ERRORS = 5
+const CHECKS_AFTER_CLOSE = 3
+
+interface Status {
+  connected: boolean
+  siteId?: string
+  scriptUrl?: string
+  accountEmail?: string
+}
+
+let popupRef: Window | null = null
+
 function poll() {
   const token = ++pollToken
   const current = stateRef.value
-  let attempts = 0
+  let checks = 0
+  let errors = 0
+  let afterClose = 0
 
-  const check = () => {
+  const next = () => {
+    if (token === pollToken) setTimeout(check, POLL_INTERVAL_MS)
+  }
+
+  const check = async () => {
     if (token !== pollToken) return
-    if (attempts++ > 600) {
+    if (++checks > MAX_CHECKS) {
+      pollToken++
       show(t.timedOut, false)
       return
     }
-    const callback = `asyntaiHaloCb${Date.now()}${Math.floor(Math.random() * 1000)}`
-    const script = document.createElement('script')
-    let done = false
-    const w = window as unknown as Record<string, unknown>
-    w[callback] = (data: { site_id?: string; script_url?: string; account_email?: string } | null) => {
-      done = true
-      delete w[callback]
-      script.remove()
+    try {
+      const { data } = await axiosInstance.get<Status>(STATUS_API + encodeURIComponent(current))
       if (token !== pollToken) return
-      if (data && data.site_id && WIDGET_ID_PATTERN.test(data.site_id)) {
+      errors = 0
+      if (data && data.connected && data.siteId && WIDGET_ID_PATTERN.test(data.siteId)) {
         pollToken++
         show(t.saving, true)
-        store(data.site_id, data.account_email || '', data.script_url || '')
-      } else {
-        setTimeout(check, 1000)
+        store(data.siteId, data.accountEmail || '', data.scriptUrl || '')
+        return
+      }
+    } catch {
+      if (token !== pollToken) return
+      if (++errors >= MAX_ERRORS) {
+        pollToken++
+        show(t.unreachable, false)
+        return
       }
     }
-    script.onerror = () => {
-      if (!done) {
-        script.remove()
-        setTimeout(check, 2000)
-      }
+    // The sign-in window was closed without finishing: check a few more
+    // times, then stop.
+    if (popupRef && popupRef.closed && ++afterClose > CHECKS_AFTER_CLOSE) {
+      pollToken++
+      show(t.windowClosed, false)
+      return
     }
-    script.src = `${origin}/connect-status.js?state=${encodeURIComponent(current)}&cb=${callback}`
-    document.head.appendChild(script)
+    next()
   }
-  setTimeout(check, 1000)
+  next()
 }
 
 function connect() {
@@ -141,11 +168,13 @@ function connect() {
     'asyntai_connect',
     `toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width=${w},height=${h},top=${y},left=${x}`,
   )
+  popupRef = popup
   show(popup ? t.finishInWindow : t.popupBlocked, !!popup)
   poll()
 }
 
 function fallbackClicked() {
+  popupRef = null
   show(t.finishInTab, true)
   poll()
 }

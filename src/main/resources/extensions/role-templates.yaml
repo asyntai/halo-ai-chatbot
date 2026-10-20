@@ -1,0 +1,16 @@
+apiVersion: v1alpha1
+kind: Role
+metadata:
+  name: role-template-asyntai-ai-chatbot-connect
+  labels:
+    halo.run/role-template: "true"
+    halo.run/hidden: "true"
+    # Every role that may manage settings (ConfigMaps) may also run the connect check.
+    rbac.authorization.halo.run/aggregate-to-role-template-manage-configmaps: "true"
+  annotations:
+    rbac.authorization.halo.run/module: "Asyntai AI 智能客服"
+    rbac.authorization.halo.run/display-name: "连接 Asyntai"
+rules:
+  - apiGroups: [ "console.api.asyntai.halo.run" ]
+    resources: [ "connections" ]
+    verbs: [ "get" ]
